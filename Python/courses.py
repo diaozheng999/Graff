@@ -264,16 +264,28 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
         fx = width + controlsWidth/2
         fy = height/2
 
+        for buttonno in xrange(13): #1-10 displays, 11 for prevoius, 12 for next, 13 for back
+            newfy = 30*buttonno+fy
+            x0 = fx-90
+            x1 = fx+90
+            y0 = fy-15
+            y1 = fy+15            
+            self.canvas.create_rectangle(x0,y0,x1,y1,fill="red", activefill="yellow", outline=None, tags="course")
+            
+
         if self.activesidecourse == None: #case where theres no active menu
             for coursedeptname in sorted(coursedepts.keys()):
-                x0 = fx-90
-                x1 = fx+90
-                y0 = fy-15
-                y1 = fy+15
-                newbutton = self.canvas.create_rectangle(x0,y0,x1,y1,fill="red", activefill="yellow", outline=None, tags="course")
+        #        newbutton = self.canvas.create_rectangle(x0,y0,x1,y1,fill="red", activefill="yellow", outline=None, tags="course")
                 self.sideCoursesIds.append(newbutton)
                 self.canvas.create_text(fx,fy, text=coursedeptname)
-                fy+=30
+            for revbuttonno in xrange(13,10,-1):
+                newfy = 30*buttonno+fy
+                if revbuttonno ==13: self.canvas.create_text(fx, newfy+15, text="Back")
+                if revbuttonno ==13: self.canvas.create_text(fx, newfy+15, text="Back")
+                if revbuttonno ==13: self.canvas.create_text(fx, newfy+15, text="Back")
+
+
+        
         else: # case where there is an active menu
             self.sideCoursesIds = []
             for coursename in sorted(courseToPrereqs.keys()):
