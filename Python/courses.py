@@ -1,5 +1,5 @@
 
-import random
+import random, tkSimpleDialog, tkMessageBox
 from Tkinter import *
 from math import *
 from eventBasedAnimationClass import EventBasedAnimationClass
@@ -16,6 +16,8 @@ r = 25
 
 
 testCourseNumber = 1
+
+
 
 class Electron(object):
     def __init__(self, x, y):
@@ -70,10 +72,24 @@ class Course(object):
     def __eq__(self, other):
         return self.courseNumber == other.courseNumber
 
-class CourseCatalog(object):
-    def __init__(self):
-        pass
 
+courseToPrereqs = {}
+courseToPrereqs["21-127"] = ()
+courseToPrereqs["15-122"] = ("15-112","21-127")
+courseToPrereqs["76-101"] = ()
+courseToPrereqs["15-221"] = ("76-101",)
+courseToPrereqs["15-251"] = ("15-112",)
+courseToPrereqs["15-150"] = ("15-112",)
+courseToPrereqs["15-213"] = ("15-122",)
+courseToPrereqs["15-210"] = ("15-122","15-150")
+courseToPrereqs["21-241"] = ()
+courseToPrereqs["15-451"] = ("21-241", "15-210", "15-251")
+courseToPrereqs["21-120"] = ()
+courseToPrereqs["21-122"] = ("21-120",)
+courseToPrereqs["21-259"] = ("21-122",)
+courseToPrereqs["15-462"] = ("21-241", "15-213", "21-259")
+courseToPrereqs["16-385"] = ("15-122", "21-241", "21-259")
+courseToPrereqs["16-311"] = ("21-241",)
 
 
 
@@ -114,11 +130,27 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
     def onMousePressed(self, event):
         self.pressCoordinates = (event.x, event.y)
         shapesSelected = self.canvas.find_withtag(CURRENT)
+
+        self.shapeSelected = False
         if len(shapesSelected) > 0:
-            self.shapeSelected = True
-            self.indexOfElectronSelected = self.electrons.index(Electron(*self.canvas.coords(shapesSelected[0])))
-        else:
-            self.shapeSelected = False
+            if shapesSelected[0] == self.addCourseButtonId:
+                courseToAdd = tkSimpleDialog.askstring("Add course", "Please enter a course number")
+                # Need to handle if course not in courseToPrereqs
+                courseTaken = tkMessageBox.askquestion("","Have you taken this course?")
+                if courseTaken == "no":
+                    courseTaking = tkMessageBox.askquestion("","Are you taking this course?")
+                    if courseTaking == "yes":
+                        status = 2
+                    else:
+                        status = 0
+                else:
+                    status = 1
+                self.addCourse(courseToAdd, status)
+                
+
+            elif event.x < width: # A shape was clicked on
+                self.shapeSelected = True
+                self.indexOfElectronSelected = self.electrons.index(Electron(*self.canvas.coords(shapesSelected[0])))
 
     def onTimerFired(self):
         if not self.shapeSelected:
@@ -177,9 +209,10 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
     def courseExists(self, courseNumber):
         return Course(courseNumber) in self.courses
 
-    def addCourse(self, courseNumber, status=False, courseName = "No name", prereqs = ()):
+    def addCourse(self, courseNumber, status=False):
         if not self.courseExists(courseNumber):
-            self.courses.append(Course(courseNumber, status, courseName, prereqs))
+            prereqs = courseToPrereqs[courseNumber]
+            self.courses.append(Course(courseNumber, status, "", prereqs))
             #self.coordinates.append(getNextCoordinate(self.coordinates[-1]))
             self.electrons.append(Electron(cx,cy))
 
@@ -232,11 +265,22 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
 
     def drawCompletionPercentage(self):
         percentComplete = self.completedCourses*100.0/len(self.courses)
-        self.canvas.create_text(width+100,100,text="%d%%"%percentComplete,fill="white",font="Arial 80 bold")
+        self.canvas.create_text(width+controlsWidth/2,controlsWidth/4,text="%d%%"%percentComplete,fill="white",font="Arial 80 bold")
+
+    def drawAddCourseButton(self):
+        buttonPadding = 10
+        buttonHeight = 30
+        x0,y0 = width+buttonPadding, controlsWidth/2+buttonPadding
+        x1,y1 = width+controlsWidth-buttonPadding, y0 + buttonHeight
+
+        self.addCourseButtonId = self.canvas.create_rectangle(x0,y0,x1,y1,fill="grey",activefill="light grey")
+        cx,cy = (x0+x1)/2, (y0+y1)/2
+        self.canvas.create_text(cx,cy,text="Add course",state=DISABLED)
 
     def drawControls(self):
         self.canvas.create_rectangle(width,0,width+controlsWidth,height,fill="black")
         self.drawCompletionPercentage()
+        self.drawAddCourseButton()
 
     def redrawAll(self):
         self.canvas.delete(ALL)
@@ -250,7 +294,7 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
     def onMouseReleasedWrapper(self, event):
         self.shapeSelected = False
 
-        if self.pressCoordinates == (event.x, event.y):
+        if self.pressCoordinates == (event.x, event.y) and event.x < width:
             global testCourseNumber
 
             if testCourseNumber == 1:
@@ -270,12 +314,12 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
             elif testCourseNumber == 8:
                 self.addCourse("15-210", 0, "", ("15-122","15-150"))
             elif testCourseNumber == 9:
-                #self.addCourse("21-241", 1)
-                pass
+                self.addCourse("21-241", 1)
             elif testCourseNumber == 10:
                 self.addCourse("15-451", 0, "", ("21-241", "15-210", "15-251"))
             elif testCourseNumber == 11:
-                self.addCourse("21-120", 1, "", ())
+                #self.addCourse("21-120", 1)
+                pass
             elif testCourseNumber == 12:
                 self.addCourse("21-122", 1, "", ("21-120",))
             elif testCourseNumber == 13:
