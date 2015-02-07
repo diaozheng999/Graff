@@ -1,5 +1,5 @@
 
-import random, tkSimpleDialog, tkMessageBox
+import random, tkSimpleDialog, tkMessageBox, os
 from Tkinter import *
 from math import *
 from eventBasedAnimationClass import EventBasedAnimationClass
@@ -126,12 +126,13 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
 
         self.completedCourses = 1
 
+        self.showContextMenu = False
+
     
     def onMousePressed(self, event):
         self.pressCoordinates = (event.x, event.y)
         shapesSelected = self.canvas.find_withtag(CURRENT)
 
-        self.shapeSelected = False
         if len(shapesSelected) > 0:
             if shapesSelected[0] == self.addCourseButtonId:
                 courseToAdd = tkSimpleDialog.askstring("Add course", "Please enter a course number")
@@ -155,7 +156,19 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
 
             elif event.x < width: # A shape was clicked on
                 self.shapeSelected = True
-                self.indexOfElectronSelected = self.electrons.index(Electron(*self.canvas.coords(shapesSelected[0])))
+                if self.showContextMenu: # Remove course
+                    self.removeCourse()
+                else:
+                    x0,y0,x1,y1 = self.canvas.coords(shapesSelected[0])
+                    self.indexOfElectronSelected = self.electrons.index(Electron((x0+x1)/2,(y0+y1)/2))
+
+        self.shapeSelected = False
+        self.showContextMenu = False
+
+    def removeCourse(self):
+        self.courses.pop(self.indexOfElectronSelected)
+        self.electrons.pop(self.indexOfElectronSelected)
+        self.completedCourses -= 1
 
     def onTimerFired(self):
         if not self.shapeSelected:
@@ -260,7 +273,7 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
 
 
             self.canvas.create_oval(x0-r,y0-r,x0+r,y0+r,fill=colour,outline=outlineColour,width=2)
-            self.canvas.create_text(x0,y0,text=course.courseNumber,font="Arial 12 bold")
+            self.canvas.create_text(x0,y0,text=course.courseNumber,font="Arial 13 bold",state=DISABLED)
     
     def drawSpiral(self):
         for i in xrange(len(self.coordinates)-1):
@@ -269,7 +282,7 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
             self.canvas.create_line(scale*x0+cx, scale*y0+cy, scale*x1+cx, scale*y1+cy)
 
     def drawCompletionPercentage(self):
-        percentComplete = self.completedCourses*100.0/len(self.courses)
+        percentComplete = 0 if self.completedCourses == 0 else self.completedCourses*100.0/len(self.courses)
         self.canvas.create_text(width+controlsWidth/2,controlsWidth/4,text="%d%%"%percentComplete,fill="white",font="Arial 80 bold")
 
     def drawAddCourseButton(self):
@@ -287,6 +300,15 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
         self.drawCompletionPercentage()
         self.drawAddCourseButton()
 
+    def drawContextMenu(self):
+        contextMenuWidth = 100
+        contextMenuHeight = 20
+        x,y = self.contextMenuPosition
+        self.canvas.create_rectangle(x,y,x+contextMenuWidth,y+contextMenuHeight,fill="light yellow",activefill="navy blue")
+        buttonPadding = 2
+        cx,cy = x + contextMenuWidth/2, y + contextMenuHeight/2
+        self.canvas.create_text(cx,cy,text="Remove course",font="Arial 12 bold",state=DISABLED)
+
     def redrawAll(self):
         self.canvas.delete(ALL)
         # draw the text
@@ -294,12 +316,17 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
         self.drawControls()
 
         #self.drawSpiral()
+
+        if self.showContextMenu:
+            self.drawContextMenu()
     
 
     def onMouseReleasedWrapper(self, event):
         self.shapeSelected = False
 
         if self.pressCoordinates == (event.x, event.y) and event.x < width:
+            # White area clicked!
+            '''
             global testCourseNumber
 
             if testCourseNumber == 1:
@@ -323,8 +350,7 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
             elif testCourseNumber == 10:
                 self.addCourse("15-451", 0, "", ("21-241", "15-210", "15-251"))
             elif testCourseNumber == 11:
-                #self.addCourse("21-120", 1)
-                pass
+                self.addCourse("21-120", 1)
             elif testCourseNumber == 12:
                 self.addCourse("21-122", 1, "", ("21-120",))
             elif testCourseNumber == 13:
@@ -338,6 +364,7 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
 
             #self.addCourse(str(testCourseNumber))
             testCourseNumber += 1
+            '''
 
     def onMouseMotionWrapper(self, event):
         if self.shapeSelected:
@@ -345,8 +372,25 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
             electron.x = event.x
             electron.y = event.y
 
+    def onRightMousePressed(self, event):
+        shapesSelected = self.canvas.find_withtag(CURRENT)
+        if event.x < width and len(shapesSelected) > 0: # Right clicked on one of the shapes in the display area
+            x0,y0,x1,y1 = self.canvas.coords(shapesSelected[0])
+            self.indexOfElectronSelected = self.electrons.index(Electron((x0+x1)/2,(y0+y1)/2))
+            self.showContextMenu = True
+            self.contextMenuPosition = (event.x, event.y)
+
+
     def initAnimation(self):
         self.root.bind("<ButtonRelease-1>", self.onMouseReleasedWrapper)
         self.root.bind("<B1-Motion>", self.onMouseMotionWrapper)
+
+        if os.name=="nt": # windows
+            rightclick = "<Button-3>"
+        elif os.name == "posix": #mac
+            rightclick="<Button-2>"
+        self.root.bind(rightclick, lambda event: self.onRightMousePressed(event))
+
+
 
 EventBasedAnimationDemo().run()
