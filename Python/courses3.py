@@ -1,9 +1,10 @@
 # Todo
-# Animations for spawning and destroying courses
-# Animate tooltip spawning
+# Handle or for prereqs
 # Undo add or remove with Cmd-U
 # Save course structure
 # Clicking context menu bug
+# Animations for spawning and destroying courses
+# Animate tooltip spawning
 
 import random, tkSimpleDialog, tkMessageBox, os
 from Tkinter import *
@@ -30,6 +31,7 @@ testCourseNumber = 1
 
 tooltipDelay = 1000
 
+currentDir = os.path.dirname(__file__)
 
 
 class Electron(object):
@@ -74,13 +76,14 @@ class Electron(object):
 
 
 class Course(object):
-    def __init__(self, courseNumber, status=0, courseName="", prereqs = ()):
+    def __init__(self, courseNumber, status=0, courseName="", prereqs = (), units = 9):
         # Takes in strings courseNumber, courseName and list of courses prereqs
         # Should prereqs be a tuple of strings of course numbers
         self.courseNumber = courseNumber
         self.courseName = courseName
         self.prereqs = prereqs
         self.status = status # 0 = not taken, 1 = taken, 2 = taking
+        self.units = units
 
     def __str__(self):
         return "%s: %s" % (self.courseNumber, self.courseName)
@@ -97,6 +100,7 @@ class Course(object):
 
 courseToPrereqs = {}
 courseToPrereqs["21-127"] = ()
+courseToPrereqs["15-112"] = ()
 courseToPrereqs["15-122"] = ("15-112","21-127")
 courseToPrereqs["76-101"] = ()
 courseToPrereqs["15-221"] = ("76-101",)
@@ -112,6 +116,9 @@ courseToPrereqs["21-259"] = ("21-122",)
 courseToPrereqs["15-462"] = ("21-241", "15-213", "21-259")
 courseToPrereqs["16-385"] = ("15-122", "21-241", "21-259")
 courseToPrereqs["16-311"] = ("21-241",)
+courseToPrereqs["15-110"] = ()
+courseToPrereqs["15-121"] = ("15-112",)
+
 
 courseToCourseName = {}
 courseToCourseName["21-127"] = "Concepts"
@@ -175,12 +182,16 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
 
         self.timerDelay = 25
 
-        self.courses = [Course("15-112", 1, "Fundamentals of Programming and Computer Science", ())]
+        self.electrons = []
+        self.courses = []
+        self.completedCourses = 0
+        self.loadCourses()
 
-        self.electrons = [Electron(cx,cy)]
+        self.countUnits()
+        self.countCompletedCourses()
+
         self.shapeSelected = False
 
-        self.completedCourses = 1
         self.activesidecourse = None
         self.sideCoursesIds = []
 
@@ -191,6 +202,19 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
         self.mousePressed = False
 
         self.mouseMotionPosition = (0,0)
+
+    def loadCourses(self):
+        try:
+            with open(currentDir + os.sep + "courses.txt") as fin:
+                string = fin.read()
+            courses = eval(string)
+            for course in courses:
+                self.addCourse(*course)
+        except Exception as inst:
+            print inst
+            self.courses = [Course("15-112", 1, "Fundamentals of Programming and Computer Science", (), 12)]
+            self.electrons = [Electron(cx,cy)]
+
 
     def addCourseButtonPressed(self):
         courseToAdd = tkSimpleDialog.askstring("Add course", "Please enter a course number")
@@ -242,6 +266,10 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
             except:
                 self.addCourse(prereq)
 
+    def onKeyPressed(self, event):
+        if event.keysym == "space": self.addRandomCourse()
+        elif event.char == "s": self.shakeItUp()
+
     def onMousePressed(self, event):
         self.mousePressed = True
         self.pressCoordinates = (event.x, event.y)
@@ -253,20 +281,56 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
             elif shapesSelected[0] == self.addRandomCourseButtonId:
                 self.addRandomCourse()
 
-            elif event.x < width: # A shape was clicked on
-                self.shapeSelected = True
-                if len(self.contextMenuItems) > 0: # Remove course
+            elif event.x < width: # A shape in main area was clicked on
+                
+                if len(self.contextMenuItems) > 0: # Context menu exists
                     self.contextMenuClicked(event.x, event.y)
-                else:
-                    x0,y0,x1,y1 = self.canvas.coords(shapesSelected[0])
-                    self.indexOfElectronSelected = self.electrons.index(Electron((x0+x1)/2,(y0+y1)/2))
+                else: # No context menu, course must have been clicked
+                    if "course" in self.canvas.gettags(shapesSelected[0]):
+                        x0,y0,x1,y1 = self.canvas.coords(shapesSelected[0])
+                        self.indexOfElectronSelected = self.electrons.index(Electron((x0+x1)/2,(y0+y1)/2))
+                        self.shapeSelected = True
+                    else:
+                        # Shake it up button clicked
+                        self.shakeItUp()
+
 
         self.contextMenuItems = []
+
+    def shakeItUp(self):
+        for electron in self.electrons:
+            # Give random vx and vy to electron
+            minV, maxV = -50, 50
+            electron.vx = random.uniform(minV, maxV)
+            electron.vy = random.uniform(minV, maxV)
 
     def removeCourse(self):
         self.courses.pop(self.indexOfElectronSelected)
         self.electrons.pop(self.indexOfElectronSelected)
-        self.completedCourses -= 1
+        
+        self.countCompletedCourses()
+        self.countUnits()
+
+        self.saveCourses()
+
+    def saveCourses(self):
+        filePath = currentDir + os.sep + "courses.txt"
+        with open(filePath, "wt") as fout:
+            fout.write("[")
+            for i in xrange(len(self.courses)):
+                course = self.courses[i]
+                fout.write(str((course.courseNumber, course.status)))
+                if i < len(self.courses)-1:
+                    fout.write(",")
+            fout.write("]")
+
+
+    def countCompletedCourses(self):
+        count = 0
+        for course in self.courses:
+            if course.status == 1: count += 1
+            elif course.status == 2: count += 0.5
+        self.completedCourses = count
 
     def courseIsHovered(self):
         x,y = self.mouseMotionPosition
@@ -345,12 +409,19 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
     def addCourse(self, courseNumber, status=0):
         if not self.courseExists(courseNumber):
             prereqs = courseToPrereqs[courseNumber]
-            self.courses.append(Course(courseNumber, status, courseToCourseName[courseNumber], prereqs))
+            try:
+                courseName = courseToCourseName[courseNumber]
+            except:
+                courseName = "NaN"
+            self.courses.append(Course(courseNumber, status, courseName, prereqs))
             #self.coordinates.append(getNextCoordinate(self.coordinates[-1]))
             self.electrons.append(Electron(cx,cy))
 
             if status == 1: self.completedCourses += 1
             elif status == 2: self.completedCourses += 0.5
+
+            self.countUnits()
+            self.saveCourses()
 
     def drawSideCourses(self):
         
@@ -433,7 +504,7 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
                     outlineColour = "black"
 
 
-            self.canvas.create_oval(x0-r,y0-r,x0+r,y0+r,fill=colour,outline=outlineColour,width=2,activefill=activefillcolour)
+            self.canvas.create_oval(x0-r,y0-r,x0+r,y0+r,fill=colour,outline=outlineColour,width=2,activefill=activefillcolour,tags="course")
             self.canvas.create_text(x0,y0,text=course.courseNumber,font="Arial 13 bold",state=DISABLED)
     
     def drawSpiral(self):
@@ -514,13 +585,41 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
         tooltipPadding = 5
         self.canvas.create_text(x+tooltipPadding,y+tooltipPadding,text=course.getBlurb(), anchor=NW, font="Arial 11", width = tooltipWidth-2*tooltipPadding)
 
+    def countUnits(self):
+        unitsTaken = 0
+        unitsTotal = 0
+        for course in self.courses:
+            courseUnits = course.units
+            unitsTotal += courseUnits
+            if course.status > 0: unitsTaken += courseUnits
+        self.unitsTaken = unitsTaken
+        self.unitsTotal = unitsTotal
+
+    def drawUnitCount(self):
+        padding = 10
+        x,y = width-padding, height-padding
+        self.canvas.create_text(x,y,text="Unit Count: %d/%d" % (self.unitsTaken, self.unitsTotal),anchor=SE)
+
+    def drawShakeItUpButton(self):
+        margin = 20
+        buttonHeight = 30
+        buttonWidth = 100
+        x0 = margin*2
+        x1 = margin+buttonWidth
+        y1 = height-margin
+        y0 = y1-buttonHeight
+        self.canvas.create_rectangle(x0,y0,x1,y1,fill="grey", activefill="light grey")
+        cx,cy = (x0+x1)/2, (y0+y1)/2
+        self.canvas.create_text(cx,cy,text="Shake It Up!")
+
     def redrawAll(self):
         self.canvas.delete(ALL)
-        # draw the text
-        self.drawCourses()
-        self.drawControls()
 
-        #self.drawSpiral()
+        self.drawCourses()
+        self.drawUnitCount()
+        self.drawShakeItUpButton()
+
+        self.drawControls()
 
         if len(self.contextMenuItems) > 0:
             self.drawContextMenu()
@@ -529,15 +628,21 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
         if self.showTooltip: self.drawTooltip()
     
     def courseClicked(self):
-        return len(self.canvas.find_withtag(CURRENT)) > 0
+        shapesSelected = self.canvas.find_withtag(CURRENT)
+        if len(shapesSelected) > 0:
+            # Check that tag of item is "course"
+            if "course" in self.canvas.gettags(shapesSelected[0]): return True
+        return False
 
     def changeCourseStatus(self):
+        # Toggles status of course at self.indexOfElectronSelected
         course = self.courses[self.indexOfElectronSelected]
         course.status += 1
         course.status %= 3
 
-        if course.status == 0 or course.status == 2: self.completedCourses -= 0.5
-        elif course.status == 1: self.completedCourses += 1
+        self.countCompletedCourses()
+        self.countUnits()
+        self.saveCourses()
 
     def onMouseReleasedWrapper(self, event):
         self.mousePressed = False
@@ -622,12 +727,12 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
         self.timeHovered = 0
 
     def onDoubleClick(self, event):
-        print "Double click!"
         shapesSelected = self.canvas.find_withtag(CURRENT)
         if event.x < width and len(shapesSelected) > 0: # Right clicked on one of the shapes in the display area
-            x0,y0,x1,y1 = self.canvas.coords(shapesSelected[0])
-            self.indexOfElectronSelected = self.electrons.index(Electron((x0+x1)/2,(y0+y1)/2))
-            self.addMissingPrerequisites()
+            if "course" in self.canvas.gettags(shapesSelected[0]):
+                x0,y0,x1,y1 = self.canvas.coords(shapesSelected[0])
+                self.indexOfElectronSelected = self.electrons.index(Electron((x0+x1)/2,(y0+y1)/2))
+                self.addMissingPrerequisites()
 
 
     def initAnimation(self):
