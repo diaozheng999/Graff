@@ -135,17 +135,22 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
         if len(shapesSelected) > 0:
             if shapesSelected[0] == self.addCourseButtonId:
                 courseToAdd = tkSimpleDialog.askstring("Add course", "Please enter a course number")
-                # Need to handle if course not in courseToPrereqs
-                courseTaken = tkMessageBox.askquestion("","Have you taken this course?")
-                if courseTaken == "no":
-                    courseTaking = tkMessageBox.askquestion("","Are you taking this course?")
-                    if courseTaking == "yes":
-                        status = 2
+                if courseToAdd != None:
+                    # Need to handle if course not in courseToPrereqs
+                    if len(courseToAdd) == 5: courseToAdd = courseToAdd[:2] + "-" + courseToAdd[2:]
+                    if len(courseToAdd) == 6 and courseToAdd in courseToPrereqs:
+                        courseTaken = tkMessageBox.askquestion("Taken?","Have you taken this course?")
+                        if courseTaken == "no":
+                            courseTaking = tkMessageBox.askquestion("Taking?","Are you taking this course?")
+                            if courseTaking == "yes":
+                                status = 2
+                            else:
+                                status = 0
+                        else:
+                            status = 1
+                        self.addCourse(courseToAdd, status)
                     else:
-                        status = 0
-                else:
-                    status = 1
-                self.addCourse(courseToAdd, status)
+                        tkMessageBox.showwarning("Course not found", "Course not found!")
                 
 
             elif event.x < width: # A shape was clicked on
@@ -255,7 +260,7 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
 
 
             self.canvas.create_oval(x0-r,y0-r,x0+r,y0+r,fill=colour,outline=outlineColour,width=2)
-            self.canvas.create_text(x0,y0,text=course.courseNumber)
+            self.canvas.create_text(x0,y0,text=course.courseNumber,font="Arial 12 bold")
     
     def drawSpiral(self):
         for i in xrange(len(self.coordinates)-1):
