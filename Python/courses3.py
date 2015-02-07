@@ -10,6 +10,9 @@ import random, tkSimpleDialog, tkMessageBox, os
 from Tkinter import *
 from math import *
 from eventBasedAnimationClass import EventBasedAnimationClass
+from mongoengine import *
+
+connect("grff", host="104.47.138.204", port=3306)
 
 # Graphics contants
 width = 800
@@ -33,6 +36,19 @@ tooltipDelay = 1000
 
 currentDir = os.path.dirname(__file__)
 
+class Course (Document):
+    code = IntField(0,99999)
+    title = StringField()
+    department = StringField()
+    minUnits = IntField()
+    maxUnits = IntField()
+    spring = IntField()
+    summer = IntField()
+    specialPermissionRequired = IntField()
+    fall = IntField()
+    prerequisites = ListField(IntField())
+    corequisites = ListField(IntField())
+    alternateListings = ListField(IntField())
 
 class Electron(object):
     def __init__(self, x, y):
@@ -86,7 +102,7 @@ class Coarse(object):
         self.units = units
 
     def __str__(self):
-        return "%s: %s" % (self.courseNumber, self.courseName)
+        return "%05d: %s" % (self.courseNumber, self.courseName)
 
     def __eq__(self, other):
         return self.courseNumber == other.courseNumber
@@ -99,44 +115,8 @@ class Coarse(object):
 
 
 courseToPrereqs = {}
-courseToPrereqs["21-127"] = ()
-courseToPrereqs["15-112"] = ()
-courseToPrereqs["15-122"] = ("15-112","21-127")
-courseToPrereqs["76-101"] = ()
-courseToPrereqs["15-221"] = ("76-101",)
-courseToPrereqs["15-251"] = ("15-112",)
-courseToPrereqs["15-150"] = ("15-112",)
-courseToPrereqs["15-213"] = ("15-122",)
-courseToPrereqs["15-210"] = ("15-122","15-150")
-courseToPrereqs["21-241"] = ()
-courseToPrereqs["15-451"] = ("21-241", "15-210", "15-251")
-courseToPrereqs["21-120"] = ()
-courseToPrereqs["21-122"] = ("21-120",)
-courseToPrereqs["21-259"] = ("21-122",)
-courseToPrereqs["15-462"] = ("21-241", "15-213", "21-259")
-courseToPrereqs["16-385"] = ("15-122", "21-241", "21-259")
-courseToPrereqs["16-311"] = ("21-241",)
-courseToPrereqs["15-110"] = ()
-courseToPrereqs["15-121"] = ("15-112",)
-
 
 courseToCourseName = {}
-courseToCourseName["21-127"] = "Concepts"
-courseToCourseName["15-122"] = "Storytime with Hyrum"
-courseToCourseName["76-101"] = "Interpy Derp"
-courseToCourseName["15-221"] = "Interp evolved"
-courseToCourseName["15-251"] = "Gitty"
-courseToCourseName["15-150"] = "Non-functional stuff"
-courseToCourseName["15-213"] = "ECE"
-courseToCourseName["15-210"] = "Parallel blah blah blah"
-courseToCourseName["21-241"] = "I <3 HANDRON"
-courseToCourseName["15-451"] = "Algo design and analysis"
-courseToCourseName["21-120"] = "Calc I"
-courseToCourseName["21-122"] = "Calc II"
-courseToCourseName["21-259"] = "Calc III"
-courseToCourseName["15-462"] = "Computer Graphics"
-courseToCourseName["16-385"] = "Computer VIsion"
-courseToCourseName["16-311"] = "Intro to Robots"
 
 coursedepts = {}
 
@@ -216,26 +196,50 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
             self.electrons = [Electron(cx,cy)]
             self.saveCourses()
 
+    def populatePrerequisites(self, course):
+        global courseToCourseName, courseToPrereqs
+        courseObj = Course.objects(code=course)
+        print courseObj.count()
+        try:
+            course = Course.objects(code=course)[0]
+        except:
+            tkMessageBox.showinfo("404", "404: Course not found.")
+            return -1
+
+        if course.code in courseToCourseName: return 1
+
+        courseToCourseName[course.code] = course.title
+        
+
+        if course.code not in courseToPrereqs:  
+            courseToPrereqs[course.code] = []
+
+        for dep in course.prerequisites:
+            try:
+                depCourse = Course.objects(code=dep)[0]
+            except:
+                tkMessageBox.showinfo("405", "405: Dependency not found.")
+                continue
+
+            if depCourse.code != course.code:
+                courseToPrereqs[course.code] += [depCourse.code]
+                self.populatePrerequisites(depCourse.code)
+                self.addCourse(dep)
+
+        
+        self.addCourse(course.code)
+        return 1
+        
+
+
+
 
     def addCourseButtonPressed(self):
         courseToAdd = tkSimpleDialog.askstring("Add course", "Please enter a course number")
         if courseToAdd != None:
             # Need to handle if course not in courseToPrereqs
-            if len(courseToAdd) == 5: courseToAdd = courseToAdd[:2] + "-" + courseToAdd[2:]
-
-            if len(courseToAdd) == 6 and courseToAdd in courseToPrereqs:
-                '''
-                courseTaken = tkMessageBox.askquestion("Taken?","Have you taken this course?")
-                if courseTaken == "no":
-                    courseTaking = tkMessageBox.askquestion("Taking?","Are you taking this course?")
-                    if courseTaking == "yes":
-                        status = 2
-                    else:
-                        status = 0
-                else:
-                    status = 1
-                    '''
-                self.addCourse(courseToAdd)
+            if self.populatePrerequisites(int(courseToAdd))>0:
+                pass
             else:
                 tkMessageBox.showwarning("Coarse not found", "Coarse not found!")        
     

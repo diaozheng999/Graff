@@ -3,6 +3,9 @@ import random, tkSimpleDialog, tkMessageBox, os
 from Tkinter import *
 from math import *
 from eventBasedAnimationClass import EventBasedAnimationClass
+from mongoengine import *
+
+connect("grff", host="104.47.138.204", port=3306)
 
 width = 800
 controlsWidth = 200
