@@ -1,3 +1,9 @@
+# Todo
+# Animations for spawning and destroying courses
+# Animate tooltip spawning
+# Undo add or remove with Cmd-U
+# Save course structure
+# Clicking context menu bug
 
 import random, tkSimpleDialog, tkMessageBox, os
 from Tkinter import *
@@ -20,6 +26,9 @@ hookesLawK = 0.1
 # Obsolete stuff
 scale = 1
 testCourseNumber = 1
+
+
+tooltipDelay = 1000
 
 
 
@@ -61,6 +70,9 @@ class Electron(object):
         epsilon = 0.1
         return abs(self.x-other.x) < epsilon and abs(self.y-other.y) < epsilon
 
+
+
+
 class Course(object):
     def __init__(self, courseNumber, status=0, courseName="", prereqs = ()):
         # Takes in strings courseNumber, courseName and list of courses prereqs
@@ -75,6 +87,12 @@ class Course(object):
 
     def __eq__(self, other):
         return self.courseNumber == other.courseNumber
+
+    def getPrereqsAsString(self):
+        return ", ".join(self.prereqs)
+
+    def getBlurb(self):
+        return "%s\n%s\n\nPrerequisites: %s" % (self.courseNumber, self.courseName, self.getPrereqsAsString())
 
 
 courseToPrereqs = {}
@@ -94,6 +112,24 @@ courseToPrereqs["21-259"] = ("21-122",)
 courseToPrereqs["15-462"] = ("21-241", "15-213", "21-259")
 courseToPrereqs["16-385"] = ("15-122", "21-241", "21-259")
 courseToPrereqs["16-311"] = ("21-241",)
+
+courseToCourseName = {}
+courseToCourseName["21-127"] = "Concepts"
+courseToCourseName["15-122"] = "Storytime with Hyrum"
+courseToCourseName["76-101"] = "Interpy Derp"
+courseToCourseName["15-221"] = "Interp evolved"
+courseToCourseName["15-251"] = "Gitty"
+courseToCourseName["15-150"] = "Non-functional stuff"
+courseToCourseName["15-213"] = "ECE"
+courseToCourseName["15-210"] = "Parallel blah blah blah"
+courseToCourseName["21-241"] = "I <3 HANDRON"
+courseToCourseName["15-451"] = "Algo design and analysis"
+courseToCourseName["21-120"] = "Calc I"
+courseToCourseName["21-122"] = "Calc II"
+courseToCourseName["21-259"] = "Calc III"
+courseToCourseName["15-462"] = "Computer Graphics"
+courseToCourseName["16-385"] = "Computer VIsion"
+courseToCourseName["16-311"] = "Intro to Robots"
 
 coursedepts = {}
 
@@ -125,6 +161,12 @@ def getNextCoordinate(coordinate):
 
 
 
+
+
+
+
+
+
 class EventBasedAnimationDemo(EventBasedAnimationClass):
 
     def __init__(self):
@@ -143,6 +185,12 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
         self.sideCoursesIds = []
 
         self.contextMenuItems = []
+
+        self.timeHovered = 0
+        self.showTooltip = False
+        self.mousePressed = False
+
+        self.mouseMotionPosition = (0,0)
 
     def addCourseButtonPressed(self):
         courseToAdd = tkSimpleDialog.askstring("Add course", "Please enter a course number")
@@ -195,6 +243,7 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
                 self.addCourse(prereq)
 
     def onMousePressed(self, event):
+        self.mousePressed = True
         self.pressCoordinates = (event.x, event.y)
         shapesSelected = self.canvas.find_withtag(CURRENT)
 
@@ -219,7 +268,24 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
         self.electrons.pop(self.indexOfElectronSelected)
         self.completedCourses -= 1
 
+    def courseIsHovered(self):
+        x,y = self.mouseMotionPosition
+        for electron in self.electrons:
+            if ((x-electron.x)**2 + (y-electron.y)**2) ** 0.5 < r: return True
+        return False
+
     def onTimerFired(self):
+
+        # Sense hovers
+        pointerPositionNow = self.root.winfo_pointerxy()
+        if not self.mousePressed and pointerPositionNow == self.pointerPositionPrev:
+            self.timeHovered += self.timerDelay
+        else: self.timeHovered = 0
+
+        if self.timeHovered > tooltipDelay and self.courseIsHovered() and len(self.contextMenuItems) == 0: self.showTooltip = True
+        else: self.showTooltip = False
+        self.pointerPositionPrev = pointerPositionNow
+
         if not self.shapeSelected:
 
             # Set all accelerations to 0
@@ -279,7 +345,7 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
     def addCourse(self, courseNumber, status=0):
         if not self.courseExists(courseNumber):
             prereqs = courseToPrereqs[courseNumber]
-            self.courses.append(Course(courseNumber, status, "", prereqs))
+            self.courses.append(Course(courseNumber, status, courseToCourseName[courseNumber], prereqs))
             #self.coordinates.append(getNextCoordinate(self.coordinates[-1]))
             self.electrons.append(Electron(cx,cy))
 
@@ -353,10 +419,10 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
                 activefillcolour = "grey"
             elif course.status == 1:
                 colour = "green"
-                activefillcolour = "#00E000"
+                activefillcolour = "#00D000"
             elif course.status == 2:
                 colour = "yellow"
-                activefillcolour = "#E0E000"
+                activefillcolour = "#D0D000"
 
             if prereqsMissing:
                 outlineColour = "red"
@@ -435,6 +501,19 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
             self.canvas.create_rectangle(x,y+contextMenuItemHeight*i,x+contextMenuWidth,y+contextMenuItemHeight*(i+1),fill="light yellow",activefill="navy blue")
             self.canvas.create_text(x+cx,y+cy,text=self.contextMenuItems[i],font="Arial 12 bold",state=DISABLED,anchor=W)
 
+    def drawTooltip(self):
+        tooltipWidth = 150
+        tooltipHeight = 100
+        x,y = self.mouseMotionPosition
+        self.canvas.create_rectangle(x,y,x+tooltipWidth,y+tooltipHeight,fill="light yellow",state=DISABLED,width=0)
+
+        for i in xrange(len(self.electrons)):
+            electron = self.electrons[i]
+            if ((x-electron.x)**2 + (y-electron.y)**2) ** 0.5 < r: break
+        course = self.courses[i]
+        tooltipPadding = 5
+        self.canvas.create_text(x+tooltipPadding,y+tooltipPadding,text=course.getBlurb(), anchor=NW, font="Arial 11", width = tooltipWidth-2*tooltipPadding)
+
     def redrawAll(self):
         self.canvas.delete(ALL)
         # draw the text
@@ -445,6 +524,9 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
 
         if len(self.contextMenuItems) > 0:
             self.drawContextMenu()
+
+
+        if self.showTooltip: self.drawTooltip()
     
     def courseClicked(self):
         return len(self.canvas.find_withtag(CURRENT)) > 0
@@ -458,6 +540,7 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
         elif course.status == 1: self.completedCourses += 1
 
     def onMouseReleasedWrapper(self, event):
+        self.mousePressed = False
         self.shapeSelected = False
 
         if self.pressCoordinates == (event.x, event.y) and event.x < width:
@@ -504,7 +587,7 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
             testCourseNumber += 1
             '''
 
-    def onMouseMotionWrapper(self, event):
+    def onMouseMovedWrapper(self, event):
         if self.shapeSelected:
             electron = self.electrons[self.indexOfElectronSelected]
             electron.x = event.x
@@ -534,18 +617,34 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
 
             self.contextMenuPosition = (event.x, event.y)
 
+    def onMouseMotion(self, event):
+        self.mouseMotionPosition = (event.x, event.y)
+        self.timeHovered = 0
+
+    def onDoubleClick(self, event):
+        print "Double click!"
+        shapesSelected = self.canvas.find_withtag(CURRENT)
+        if event.x < width and len(shapesSelected) > 0: # Right clicked on one of the shapes in the display area
+            x0,y0,x1,y1 = self.canvas.coords(shapesSelected[0])
+            self.indexOfElectronSelected = self.electrons.index(Electron((x0+x1)/2,(y0+y1)/2))
+            self.addMissingPrerequisites()
+
 
     def initAnimation(self):
         self.root.bind("<ButtonRelease-1>", self.onMouseReleasedWrapper)
-        self.root.bind("<B1-Motion>", self.onMouseMotionWrapper)
+        self.root.bind("<B1-Motion>", self.onMouseMovedWrapper)
 
         if os.name=="nt": # windows
             rightclick = "<Button-3>"
         elif os.name == "posix": #mac
             rightclick="<Button-2>"
-        self.root.bind(rightclick, lambda event: self.onRightMousePressed(event))
+        self.root.bind(rightclick, self.onRightMousePressed)
+        self.root.bind("<Motion>", self.onMouseMotion)
+        self.root.bind("<Double-Button-1>", self.onDoubleClick)
 
         self.root.title("See your future")
+
+        self.pointerPositionPrev = self.root.winfo_pointerxy()
 
 
 

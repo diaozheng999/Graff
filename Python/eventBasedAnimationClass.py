@@ -32,6 +32,7 @@ class EventBasedAnimationClass(object):
     def run(self):
         # create the root and the canvas
         self.root = Tk()
+        self.root.resizable(width=FALSE, height=FALSE)
         self.canvas = Canvas(self.root, width=self.width, height=self.height)
         self.canvas.pack()
         self.initAnimation()
