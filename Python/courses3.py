@@ -75,7 +75,7 @@ class Electron(object):
 
 
 
-class Course(object):
+class Coarse(object):
     def __init__(self, courseNumber, status=0, courseName="", prereqs = (), units = 9):
         # Takes in strings courseNumber, courseName and list of courses prereqs
         # Should prereqs be a tuple of strings of course numbers
@@ -212,8 +212,9 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
                 self.addCourse(*course)
         except Exception as inst:
             print inst
-            self.courses = [Course("15-112", 1, "Fundamentals of Programming and Computer Science", (), 12)]
+            self.courses = [Coarse("15-112", 1, "Fundamentals of Programming and Computer Science", (), 12)]
             self.electrons = [Electron(cx,cy)]
+            self.saveCourses()
 
 
     def addCourseButtonPressed(self):
@@ -236,13 +237,13 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
                     '''
                 self.addCourse(courseToAdd)
             else:
-                tkMessageBox.showwarning("Course not found", "Course not found!")        
+                tkMessageBox.showwarning("Coarse not found", "Coarse not found!")        
     
     def addRandomCourse(self):
         maxTries = 50
         while maxTries > 0:
             randomCourse = random.choice(courseToPrereqs.keys())
-            if Course(randomCourse) not in self.courses: break
+            if Coarse(randomCourse) not in self.courses: break
             maxTries -= 1
         
         if maxTries == 0: print "No more courses to add!"
@@ -262,7 +263,7 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
         missingPrereqs = []
         for prereq in course.prereqs:
             try:
-                j = self.courses.index(Course(prereq))
+                j = self.courses.index(Coarse(prereq))
             except:
                 self.addCourse(prereq)
 
@@ -386,7 +387,7 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
                 for prereq in course.prereqs:
                     # Take into account prereq tension
                     try:
-                        j = self.courses.index(Course(prereq))
+                        j = self.courses.index(Coarse(prereq))
                         otherElectron = self.electrons[j]
                         x1,y1 = otherElectron.getCoords()
                         dx = x1 - electron.x
@@ -404,7 +405,7 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
                 electron.doPhysics()
     
     def courseExists(self, courseNumber):
-        return Course(courseNumber) in self.courses
+        return Coarse(courseNumber) in self.courses
 
     def addCourse(self, courseNumber, status=0):
         if not self.courseExists(courseNumber):
@@ -413,7 +414,7 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
                 courseName = courseToCourseName[courseNumber]
             except:
                 courseName = "NaN"
-            self.courses.append(Course(courseNumber, status, courseName, prereqs))
+            self.courses.append(Coarse(courseNumber, status, courseName, prereqs))
             #self.coordinates.append(getNextCoordinate(self.coordinates[-1]))
             self.electrons.append(Electron(cx,cy))
 
@@ -476,7 +477,7 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
             for prereq in course.prereqs:
                 # Draw arrow from prereq
                 try:
-                    j = self.courses.index(Course(prereq))
+                    j = self.courses.index(Coarse(prereq))
                     if self.courses[j].status == 0: prereqsFulfilled = False
                     x1,y1 = self.electrons[j].getCoords()
 
@@ -556,10 +557,9 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
     def drawControls(self):
         self.canvas.create_rectangle(width,0,width+controlsWidth,height,fill="black")
         self.drawCompletionPercentage()
-        #self.drawEncouragingMessage()
         self.drawAddCourseButton()
         self.drawAddRandomCourseButton()
-        self.drawSideCourses()
+        #self.drawSideCourses()
 
     def drawContextMenu(self):
         contextMenuWidth = 150
@@ -701,7 +701,7 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
     def hasMissingPrerequisites(self, course):
         for prereq in course.prereqs:
             try:
-                j = self.courses.index(Course(prereq))
+                j = self.courses.index(Coarse(prereq))
             except:
                 return True
         return False
