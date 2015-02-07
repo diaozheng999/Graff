@@ -128,31 +128,41 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
 
         self.showContextMenu = False
 
+    def addCourseButtonPressed(self):
+        courseToAdd = tkSimpleDialog.askstring("Add course", "Please enter a course number")
+        if courseToAdd != None:
+            # Need to handle if course not in courseToPrereqs
+            if len(courseToAdd) == 5: courseToAdd = courseToAdd[:2] + "-" + courseToAdd[2:]
+
+            if len(courseToAdd) == 6 and courseToAdd in courseToPrereqs:
+                '''
+                courseTaken = tkMessageBox.askquestion("Taken?","Have you taken this course?")
+                if courseTaken == "no":
+                    courseTaking = tkMessageBox.askquestion("Taking?","Are you taking this course?")
+                    if courseTaking == "yes":
+                        status = 2
+                    else:
+                        status = 0
+                else:
+                    status = 1
+                    '''
+                self.addCourse(courseToAdd)
+            else:
+                tkMessageBox.showwarning("Course not found", "Course not found!")        
     
+    def addRandomCourse(self):
+        randomCourse = random.choice(courseToPrereqs.keys())
+        self.addCourse(randomCourse)
+
     def onMousePressed(self, event):
         self.pressCoordinates = (event.x, event.y)
         shapesSelected = self.canvas.find_withtag(CURRENT)
 
         if len(shapesSelected) > 0:
             if shapesSelected[0] == self.addCourseButtonId:
-                courseToAdd = tkSimpleDialog.askstring("Add course", "Please enter a course number")
-                if courseToAdd != None:
-                    # Need to handle if course not in courseToPrereqs
-                    if len(courseToAdd) == 5: courseToAdd = courseToAdd[:2] + "-" + courseToAdd[2:]
-                    if len(courseToAdd) == 6 and courseToAdd in courseToPrereqs:
-                        courseTaken = tkMessageBox.askquestion("Taken?","Have you taken this course?")
-                        if courseTaken == "no":
-                            courseTaking = tkMessageBox.askquestion("Taking?","Are you taking this course?")
-                            if courseTaking == "yes":
-                                status = 2
-                            else:
-                                status = 0
-                        else:
-                            status = 1
-                        self.addCourse(courseToAdd, status)
-                    else:
-                        tkMessageBox.showwarning("Course not found", "Course not found!")
-                
+                self.addCourseButtonPressed()
+            elif shapesSelected[0] == self.addRandomCourseButtonId:
+                self.addRandomCourse()
 
             elif event.x < width: # A shape was clicked on
                 self.shapeSelected = True
@@ -162,7 +172,6 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
                     x0,y0,x1,y1 = self.canvas.coords(shapesSelected[0])
                     self.indexOfElectronSelected = self.electrons.index(Electron((x0+x1)/2,(y0+y1)/2))
 
-        self.shapeSelected = False
         self.showContextMenu = False
 
     def removeCourse(self):
@@ -227,7 +236,7 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
     def courseExists(self, courseNumber):
         return Course(courseNumber) in self.courses
 
-    def addCourse(self, courseNumber, status=False):
+    def addCourse(self, courseNumber, status=0):
         if not self.courseExists(courseNumber):
             prereqs = courseToPrereqs[courseNumber]
             self.courses.append(Course(courseNumber, status, "", prereqs))
@@ -259,9 +268,15 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
                 except:
                     prereqsMissing = True
 
-            if course.status == 0: colour = "white"
-            elif course.status == 1: colour = "green"
-            elif course.status == 2: colour = "yellow"
+            if course.status == 0:
+                colour = "white"
+                activefillcolour = "grey"
+            elif course.status == 1:
+                colour = "green"
+                activefillcolour = "#00E000"
+            elif course.status == 2:
+                colour = "yellow"
+                activefillcolour = "#E0E000"
 
             if prereqsMissing:
                 outlineColour = "red"
@@ -272,7 +287,7 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
                     outlineColour = "black"
 
 
-            self.canvas.create_oval(x0-r,y0-r,x0+r,y0+r,fill=colour,outline=outlineColour,width=2)
+            self.canvas.create_oval(x0-r,y0-r,x0+r,y0+r,fill=colour,outline=outlineColour,width=2,activefill=activefillcolour)
             self.canvas.create_text(x0,y0,text=course.courseNumber,font="Arial 13 bold",state=DISABLED)
     
     def drawSpiral(self):
@@ -285,20 +300,48 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
         percentComplete = 0 if self.completedCourses == 0 else self.completedCourses*100.0/len(self.courses)
         self.canvas.create_text(width+controlsWidth/2,controlsWidth/4,text="%d%%"%percentComplete,fill="white",font="Arial 80 bold")
 
+        encouragement = ""
+        if percentComplete == 100:
+            encouragement = "Congratulations! You have completed college!"
+        elif 75 <= percentComplete < 100:
+            encouragement = "Way to go! Almost there!"
+        elif 60 <= percentComplete < 75:
+            encouragement = "You're about two-thirds done now"
+        elif 50 <= percentComplete < 60:
+            encouragement = "Woah! Halfway done! Good job!"
+        elif 10 <= percentComplete < 30:
+            encouragement = "So far, so good"
+        elif 0 <= percentComplete < 10:
+            encouragement = "So you wanna be startin' something..."
+        self.canvas.create_text(width+controlsWidth/2,controlsWidth/1.5,text=encouragement,fill="white",width=controlsWidth,justify=CENTER)
+
+
     def drawAddCourseButton(self):
         buttonPadding = 10
         buttonHeight = 30
-        x0,y0 = width+buttonPadding, controlsWidth/2+buttonPadding
+        x0,y0 = width+buttonPadding, controlsWidth+buttonPadding
         x1,y1 = width+controlsWidth-buttonPadding, y0 + buttonHeight
 
         self.addCourseButtonId = self.canvas.create_rectangle(x0,y0,x1,y1,fill="grey",activefill="light grey")
         cx,cy = (x0+x1)/2, (y0+y1)/2
         self.canvas.create_text(cx,cy,text="Add course",state=DISABLED)
 
+    def drawAddRandomCourseButton(self):
+        buttonPadding = 10
+        buttonHeight = 30
+        x0,y0 = width+buttonPadding, controlsWidth+2*buttonPadding+buttonHeight
+        x1,y1 = width+controlsWidth-buttonPadding, y0 + buttonHeight
+
+        self.addRandomCourseButtonId = self.canvas.create_rectangle(x0,y0,x1,y1,fill="grey",activefill="light grey")
+        cx,cy = (x0+x1)/2, (y0+y1)/2
+        self.canvas.create_text(cx,cy,text="Add random course",state=DISABLED)
+
     def drawControls(self):
         self.canvas.create_rectangle(width,0,width+controlsWidth,height,fill="black")
         self.drawCompletionPercentage()
+        #self.drawEncouragingMessage()
         self.drawAddCourseButton()
+        self.drawAddRandomCourseButton()
 
     def drawContextMenu(self):
         contextMenuWidth = 100
@@ -320,12 +363,24 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
         if self.showContextMenu:
             self.drawContextMenu()
     
+    def courseClicked(self):
+        return len(self.canvas.find_withtag(CURRENT)) > 0
+
+    def changeCourseStatus(self):
+        course = self.courses[self.indexOfElectronSelected]
+        course.status += 1
+        course.status %= 3
+
+        if course.status == 0 or course.status == 2: self.completedCourses -= 0.5
+        elif course.status == 1: self.completedCourses += 1
 
     def onMouseReleasedWrapper(self, event):
         self.shapeSelected = False
 
         if self.pressCoordinates == (event.x, event.y) and event.x < width:
             # White area clicked!
+            if self.courseClicked():
+                self.changeCourseStatus()
             '''
             global testCourseNumber
 
