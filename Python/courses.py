@@ -92,6 +92,17 @@ courseToPrereqs["16-385"] = ("15-122", "21-241", "21-259")
 courseToPrereqs["16-311"] = ("21-241",)
 
 
+coursedepts = {}
+
+for coursename in courseToPrereqs.keys():
+    dept = coursename[:2]
+    if dept not in coursedepts.keys():
+        coursedepts[dept] = set([coursename])
+    else:
+        coursedepts[dept].add(coursename)
+
+
+
 
 def getNextCoordinate(coordinate):
     # Takes in tuple coordinate
@@ -125,6 +136,8 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
         self.shapeSelected = False
 
         self.completedCourses = 1
+        self.activesidecourse = None
+        self.sideCoursesIds = []
 
         self.showContextMenu = False
 
@@ -246,6 +259,35 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
             if status == 1: self.completedCourses += 1
             elif status == 2: self.completedCourses += 0.5
 
+    def drawSideCourses(self):
+        
+        fx = width + controlsWidth/2
+        fy = height/2
+
+        if self.activesidecourse == None: #case where theres no active menu
+            for coursedeptname in sorted(coursedepts.keys()):
+                x0 = fx-90
+                x1 = fx+90
+                y0 = fy-15
+                y1 = fy+15
+                newbutton = self.canvas.create_rectangle(x0,y0,x1,y1,fill="red", activefill="yellow", outline=None, tags="course")
+                self.sideCoursesIds.append(newbutton)
+                self.canvas.create_text(fx,fy, text=coursedeptname)
+                fy+=30
+        else: # case where there is an active menu
+            self.sideCoursesIds = []
+            for coursename in sorted(courseToPrereqs.keys()):
+                if coursename.startswith(str(self.activesidecourse)):
+                    x0 = fx-90
+                    x1 = fx+90
+                    y0 = fy-15
+                    y1 = fy+15
+                    newbutton = self.canvas.create_rectangle(x0,y0,x1,y1,fill="red", activefill="yellow", outline=None)
+                    self.sideCoursesIds.append(newbutton)
+                    self.canvas.create_text(fx,fy, text=coursename)
+                    fy+=30
+            self.canvas.create_rectangle(x0,y0,x1,y1,fill="green", activefill="yellow", outline=None)
+            self.canvas.create_text(fx,fy, text="back")
 
 
     def drawCourses(self):
@@ -342,6 +384,7 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
         #self.drawEncouragingMessage()
         self.drawAddCourseButton()
         self.drawAddRandomCourseButton()
+        self.drawSideCourses()
 
     def drawContextMenu(self):
         contextMenuWidth = 100
