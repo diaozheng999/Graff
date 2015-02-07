@@ -92,7 +92,7 @@ class Electron(object):
 
 
 class Coarse(object):
-    def __init__(self, courseNumber, status=0, courseName="", prereqs = (), units = 9):
+    def __init__(self, courseNumber, status=0, courseName="", prereqs = [], units = 9):
         # Takes in strings courseNumber, courseName and list of courses prereqs
         # Should prereqs be a tuple of strings of course numbers
         self.courseNumber = courseNumber
@@ -108,10 +108,13 @@ class Coarse(object):
         return self.courseNumber == other.courseNumber
 
     def getPrereqsAsString(self):
-        return ", ".join(self.prereqs)
+        return ", ".join(str(self.prereqs))
 
     def getBlurb(self):
         return "%s\n%s\n\nPrerequisites: %s" % (self.courseNumber, self.courseName, self.getPrereqsAsString())
+
+    def __repr__(self):
+        return "Coarse(%d, %d, %r, %r, %d)" % (self.courseNumber, self.status, self.courseName, self.prereqs, self.units)
 
 
 courseToPrereqs = {}
@@ -188,18 +191,20 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
             with open(currentDir + os.sep + "courses.txt") as fin:
                 string = fin.read()
             courses = eval(string)
+            
             for course in courses:
-                self.addCourse(*course)
+                self.electrons.append(Electron(cx,cy))
+            self.courses = courses
+
+
         except Exception as inst:
-            print inst
-            self.courses = [Coarse("15-112", 1, "Fundamentals of Programming and Computer Science", (), 12)]
+            self.courses = [Coarse(15112, 1, "Fundamentals of Programming and Computer Science", (), 12)]
             self.electrons = [Electron(cx,cy)]
             self.saveCourses()
 
     def populatePrerequisites(self, course):
         global courseToCourseName, courseToPrereqs
         courseObj = Course.objects(code=course)
-        print courseObj.count()
         try:
             course = Course.objects(code=course)[0]
         except:
@@ -238,10 +243,16 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
         courseToAdd = tkSimpleDialog.askstring("Add course", "Please enter a course number")
         if courseToAdd != None:
             # Need to handle if course not in courseToPrereqs
-            if self.populatePrerequisites(int(courseToAdd))>0:
-                pass
-            else:
-                tkMessageBox.showwarning("Coarse not found", "Coarse not found!")        
+            try:
+                if len(courseToAdd) == 6: courseToAdd = courseToAdd[:2] + courseToAdd[3:]
+                if self.populatePrerequisites(int(courseToAdd))>0:
+                    pass
+                    '''
+                else:
+                    tkMessageBox.showwarning("Coarse not found", "Coarse not found!")
+                    '''
+            except:
+                tkMessageBox.showwarning("Course not found", "Course not found!")
     
     def addRandomCourse(self):
         maxTries = 50
@@ -321,6 +332,8 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
     def saveCourses(self):
         filePath = currentDir + os.sep + "courses.txt"
         with open(filePath, "wt") as fout:
+            fout.write(repr(self.courses))
+            '''
             fout.write("[")
             for i in xrange(len(self.courses)):
                 course = self.courses[i]
@@ -328,6 +341,7 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
                 if i < len(self.courses)-1:
                     fout.write(",")
             fout.write("]")
+            '''
 
 
     def countCompletedCourses(self):
@@ -412,6 +426,8 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
         return Coarse(courseNumber) in self.courses
 
     def addCourse(self, courseNumber, status=0):
+        # Takes in int courseNumber, int status
+
         if not self.courseExists(courseNumber):
             prereqs = courseToPrereqs[courseNumber]
             try:
@@ -510,7 +526,8 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
 
 
             self.canvas.create_oval(x0-r,y0-r,x0+r,y0+r,fill=colour,outline=outlineColour,width=2,activefill=activefillcolour,tags="course")
-            self.canvas.create_text(x0,y0,text=course.courseNumber,font="Arial 13 bold",state=DISABLED)
+            courseNumberAsStr = "%05d" % course.courseNumber
+            self.canvas.create_text(x0,y0,text=courseNumberAsStr[:2] + "-" + courseNumberAsStr[2:],font="Arial 13 bold",state=DISABLED)
     
     def drawSpiral(self):
         for i in xrange(len(self.coordinates)-1):
@@ -751,7 +768,7 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
         self.root.bind("<Motion>", self.onMouseMotion)
         self.root.bind("<Double-Button-1>", self.onDoubleClick)
 
-        self.root.title("See your future")
+        self.root.title("Graff")
 
         self.pointerPositionPrev = self.root.winfo_pointerxy()
 
