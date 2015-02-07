@@ -91,7 +91,6 @@ courseToPrereqs["15-462"] = ("21-241", "15-213", "21-259")
 courseToPrereqs["16-385"] = ("15-122", "21-241", "21-259")
 courseToPrereqs["16-311"] = ("21-241",)
 
-
 coursedepts = {}
 
 for coursename in courseToPrereqs.keys():
@@ -164,7 +163,13 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
                 tkMessageBox.showwarning("Course not found", "Course not found!")        
     
     def addRandomCourse(self):
-        randomCourse = random.choice(courseToPrereqs.keys())
+        maxTries = 50
+        while maxTries > 0:
+            randomCourse = random.choice(courseToPrereqs.keys())
+            if Course(randomCourse) not in self.courses: break
+            maxTries -= 1
+        
+        if maxTries == 0: print "No more courses to add!"
         self.addCourse(randomCourse)
 
     def onMousePressed(self, event):
@@ -301,7 +306,6 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
             self.canvas.create_rectangle(x0,y0,x1,y1,fill="green", activefill="yellow", outline=None)
             self.canvas.create_text(fx,fy, text="back")
 
-
     def drawCourses(self):
         for i in xrange(len(self.courses)):
             course = self.courses[i]
@@ -378,7 +382,7 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
 
         self.addCourseButtonId = self.canvas.create_rectangle(x0,y0,x1,y1,fill="grey",activefill="light grey")
         cx,cy = (x0+x1)/2, (y0+y1)/2
-        self.canvas.create_text(cx,cy,text="Add course",state=DISABLED)
+        self.canvas.create_text(cx,cy,text="Add course by number",state=DISABLED)
 
     def drawAddRandomCourseButton(self):
         buttonPadding = 10
