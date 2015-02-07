@@ -1,10 +1,4 @@
-# Todo
-# Handle or for prereqs
-# Undo add or remove with Cmd-U
-# Save course structure
-# Clicking context menu bug
-# Animations for spawning and destroying courses
-# Animate tooltip spawning
+# Tooltip bug
 
 import random, tkSimpleDialog, tkMessageBox, os
 from Tkinter import *
@@ -49,6 +43,8 @@ class Course (Document):
     prerequisites = ListField(IntField())
     corequisites = ListField(IntField())
     alternateListings = ListField(IntField())
+nCourses = Course.objects().count()
+
 
 class Electron(object):
     def __init__(self, x, y):
@@ -108,10 +104,13 @@ class Coarse(object):
         return self.courseNumber == other.courseNumber
 
     def getPrereqsAsString(self):
-        return ", ".join(str(self.prereqs))
+        if len(self.prereqs) == 0: return "None"
+        return str(self.prereqs)
 
     def getBlurb(self):
-        return "%s\n%s\n\nPrerequisites: %s" % (self.courseNumber, self.courseName, self.getPrereqsAsString())
+        courseNumberAsStr = str(self.courseNumber)
+        courseNumberAsStr = courseNumberAsStr[:2] + "-" + courseNumberAsStr[2:]
+        return "%s\n%s\n\nPrerequisites: %s" % (courseNumberAsStr, self.courseName, self.getPrereqsAsString())
 
     def __repr__(self):
         return "Coarse(%d, %d, %r, %r, %d)" % (self.courseNumber, self.status, self.courseName, self.prereqs, self.units)
@@ -239,7 +238,7 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
 
 
 
-    def addCourseButtonPressed(self):
+    def addCourseAndPrereqsButtonPressed(self):
         courseToAdd = tkSimpleDialog.askstring("Add course", "Please enter a course number")
         if courseToAdd != None:
             # Need to handle if course not in courseToPrereqs
@@ -254,14 +253,37 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
             except:
                 tkMessageBox.showwarning("Course not found", "Course not found!")
     
+    def addCourseButtonPressed(self):
+        courseToAdd = tkSimpleDialog.askstring("Add course", "Please enter a course number")
+        if courseToAdd != None:
+            # Need to handle if course not in courseToPrereqs
+            try:
+                if len(courseToAdd) == 6: courseToAdd = courseToAdd[:2] + courseToAdd[3:]
+                self.addCourse(int(courseToAdd))
+            except:
+                tkMessageBox.showwarning("Course not found", "Course not found!")
+    
+    def removeAllCourses(self):
+        self.courses = []
+        self.electrons = []
+        self.countUnits()
+        self.countCompletedCourses()
+        self.saveCourses()
+
     def addRandomCourse(self):
         maxTries = 50
         while maxTries > 0:
-            randomCourse = random.choice(courseToPrereqs.keys())
+            i = random.randint(0,nCourses-1)
+            randomCourse = Course.objects()[i].code
+            if Coarse(randomCourse) not in self.courses: break
+            '''
             if Coarse(randomCourse) not in self.courses: break
             maxTries -= 1
+            '''
         
-        if maxTries == 0: print "No more courses to add!"
+        if maxTries == 0:
+            print "No more courses to add!"
+            return
         self.addCourse(randomCourse)
 
     def contextMenuClicked(self,x,y):
@@ -292,10 +314,14 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
         shapesSelected = self.canvas.find_withtag(CURRENT)
 
         if len(shapesSelected) > 0: # A shape was clicked
-            if shapesSelected[0] == self.addCourseButtonId:
-                self.addCourseButtonPressed()
+            if shapesSelected[0] == self.addCourseAndPrereqsButtonId:
+                self.addCourseAndPrereqsButtonPressed()
             elif shapesSelected[0] == self.addRandomCourseButtonId:
                 self.addRandomCourse()
+            elif shapesSelected[0] == self.addCourseButtonId:
+                self.addCourseButtonPressed()
+            elif shapesSelected[0] == self.removeAllCoursesButtonId:
+                self.removeAllCourses()
 
             elif event.x < width: # A shape in main area was clicked on
                 
@@ -425,16 +451,13 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
     def courseExists(self, courseNumber):
         return Coarse(courseNumber) in self.courses
 
+
     def addCourse(self, courseNumber, status=0):
         # Takes in int courseNumber, int status
 
         if not self.courseExists(courseNumber):
-            prereqs = courseToPrereqs[courseNumber]
-            try:
-                courseName = courseToCourseName[courseNumber]
-            except:
-                courseName = "NaN"
-            self.courses.append(Coarse(courseNumber, status, courseName, prereqs))
+            course = Course.objects(code=courseNumber)[0]
+            self.courses.append(Coarse(courseNumber, status, course.title, course.prerequisites, course.minUnits))
             #self.coordinates.append(getNextCoordinate(self.coordinates[-1]))
             self.electrons.append(Electron(cx,cy))
 
@@ -555,15 +578,25 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
         self.canvas.create_text(width+controlsWidth/2,controlsWidth/1.5,text=encouragement,fill="white",width=controlsWidth,justify=CENTER)
 
 
-    def drawAddCourseButton(self):
+    def drawAddCourseAndPrereqsButton(self):
         buttonPadding = 10
         buttonHeight = 30
         x0,y0 = width+buttonPadding, controlsWidth+buttonPadding
         x1,y1 = width+controlsWidth-buttonPadding, y0 + buttonHeight
 
+        self.addCourseAndPrereqsButtonId = self.canvas.create_rectangle(x0,y0,x1,y1,fill="grey",activefill="light grey")
+        cx,cy = (x0+x1)/2, (y0+y1)/2
+        self.canvas.create_text(cx,cy,text="Add course and all prereqs",state=DISABLED)
+
+    def drawAddCourseButton(self):
+        buttonPadding = 10
+        buttonHeight = 30
+        x0,y0 = width+buttonPadding, controlsWidth-buttonHeight
+        x1,y1 = width+controlsWidth-buttonPadding, y0 + buttonHeight
+
         self.addCourseButtonId = self.canvas.create_rectangle(x0,y0,x1,y1,fill="grey",activefill="light grey")
         cx,cy = (x0+x1)/2, (y0+y1)/2
-        self.canvas.create_text(cx,cy,text="Add course by number",state=DISABLED)
+        self.canvas.create_text(cx,cy,text="Add course",state=DISABLED)
 
     def drawAddRandomCourseButton(self):
         buttonPadding = 10
@@ -575,11 +608,23 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
         cx,cy = (x0+x1)/2, (y0+y1)/2
         self.canvas.create_text(cx,cy,text="Add random course",state=DISABLED)
 
+    def drawDeleteAllCoursesButton(self):
+        buttonPadding = 10
+        buttonHeight = 30
+        x0,y0 = width+buttonPadding, controlsWidth+3*buttonPadding+2*buttonHeight
+        x1,y1 = width+controlsWidth-buttonPadding, y0 + buttonHeight
+
+        self.removeAllCoursesButtonId = self.canvas.create_rectangle(x0,y0,x1,y1,fill="grey",activefill="light grey")
+        cx,cy = (x0+x1)/2, (y0+y1)/2
+        self.canvas.create_text(cx,cy,text="Remove all courses",state=DISABLED)
+
     def drawControls(self):
         self.canvas.create_rectangle(width,0,width+controlsWidth,height,fill="black")
         self.drawCompletionPercentage()
         self.drawAddCourseButton()
+        self.drawAddCourseAndPrereqsButton()
         self.drawAddRandomCourseButton()
+        self.drawDeleteAllCoursesButton()
         #self.drawSideCourses()
 
     def drawContextMenu(self):
