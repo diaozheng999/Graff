@@ -618,6 +618,22 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
         cx,cy = (x0+x1)/2, (y0+y1)/2
         self.canvas.create_text(cx,cy,text="Remove all courses",state=DISABLED)
 
+    def drawLegend(self):
+        x = width+r+10
+        x2 = x+r+10
+        y = height/2+r*3
+        self.canvas.create_oval(x-r,y-r,x+r,y+r,outline="green",width=2)
+        self.canvas.create_text(x2,y,text="Prerequisites fulfilled",fill="white",anchor=W, width = 130)
+        y += 2.5*r
+        self.canvas.create_oval(x-r,y-r,x+r,y+r,outline="red",width=2)
+        self.canvas.create_text(x2,y,text="Prerequisites missing",fill="white",anchor=W, width = 130)
+        y += 2.5*r
+        self.canvas.create_oval(x-r,y-r,x+r,y+r,fill="green",width=2)
+        self.canvas.create_text(x2,y,text="Course taken",fill="white",anchor=W, width = 130)
+        y += 2.5*r
+        self.canvas.create_oval(x-r,y-r,x+r,y+r,fill="yellow",width=2)
+        self.canvas.create_text(x2,y,text="Course being taken",fill="white",anchor=W, width = 130)
+        
     def drawControls(self):
         self.canvas.create_rectangle(width,0,width+controlsWidth,height,fill="black")
         self.drawCompletionPercentage()
@@ -625,6 +641,7 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
         self.drawAddCourseAndPrereqsButton()
         self.drawAddRandomCourseButton()
         self.drawDeleteAllCoursesButton()
+        self.drawLegend()
         #self.drawSideCourses()
 
     def drawContextMenu(self):
