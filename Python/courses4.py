@@ -1,12 +1,14 @@
-# Tooltip bug
+# Bugs: tooltip doesn't always show up
+# courses4.py: uses allCourses.py
 
 import random, tkSimpleDialog, tkMessageBox, os
 from Tkinter import *
 from math import *
+from allCourses import *
 from eventBasedAnimationClass import EventBasedAnimationClass
-from mongoengine import *
+#from mongoengine import *
 
-connect("grff", host="104.47.138.204", port=3306)
+#connect("grff", host="104.47.138.204", port=3306)
 
 # Graphics contants
 width = 800
@@ -26,10 +28,11 @@ scale = 1
 testCourseNumber = 1
 
 
-tooltipDelay = 1000
+tooltipDelay = 250
 
 currentDir = os.path.dirname(__file__)
 
+'''
 class Course (Document):
     code = IntField(0,99999)
     title = StringField()
@@ -44,7 +47,7 @@ class Course (Document):
     corequisites = ListField(IntField())
     alternateListings = ListField(IntField())
 nCourses = Course.objects().count()
-
+'''
 
 class Electron(object):
     def __init__(self, x, y):
@@ -236,7 +239,10 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
         
 
 
-
+    def addCourseAndPrereqs(self, courseNumber):
+        self.addCourse(courseNumber)
+        for prereq in dictionaryOfAllCourses[courseNumber]["prerequisites"]:
+            self.addCourseAndPrereqs(prereq)
 
     def addCourseAndPrereqsButtonPressed(self):
         courseToAdd = tkSimpleDialog.askstring("Add course", "Please enter a course number")
@@ -244,12 +250,12 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
             # Need to handle if course not in courseToPrereqs
             try:
                 if len(courseToAdd) == 6: courseToAdd = courseToAdd[:2] + courseToAdd[3:]
+                courseNumber = int(courseToAdd)
+                self.addCourseAndPrereqs(courseNumber)
+                '''
                 if self.populatePrerequisites(int(courseToAdd))>0:
                     pass
-                    '''
-                else:
-                    tkMessageBox.showwarning("Coarse not found", "Coarse not found!")
-                    '''
+                '''
             except:
                 tkMessageBox.showwarning("Course not found", "Course not found!")
     
@@ -273,18 +279,14 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
     def addRandomCourse(self):
         maxTries = 50
         while maxTries > 0:
-            i = random.randint(0,nCourses-1)
-            randomCourse = Course.objects()[i].code
-            if Coarse(randomCourse) not in self.courses: break
-            '''
-            if Coarse(randomCourse) not in self.courses: break
+            randomCourseNumber = random.choice(dictionaryOfAllCourses.keys())
+            if Coarse(randomCourseNumber) not in self.courses: break
             maxTries -= 1
-            '''
         
         if maxTries == 0:
             print "No more courses to add!"
             return
-        self.addCourse(randomCourse)
+        self.addCourse(randomCourseNumber)
 
     def contextMenuClicked(self,x,y):
         x,yPos = self.contextMenuPosition
@@ -452,19 +454,17 @@ class EventBasedAnimationDemo(EventBasedAnimationClass):
         return Coarse(courseNumber) in self.courses
 
 
-    def addCourse(self, courseNumber, status=0):
-        # Takes in int courseNumber, int status
+    def addCourse(self, courseNumber):
+        # Takes in int courseNumber
 
-        if not self.courseExists(courseNumber):
-            course = Course.objects(code=courseNumber)[0]
-            self.courses.append(Coarse(courseNumber, status, course.title, course.prerequisites, course.minUnits))
+        if not self.courseExists(courseNumber): # Why do we do this again, since addRandomCourse already checks for this?
+            course = dictionaryOfAllCourses[courseNumber]
+            self.courses.append(Coarse(courseNumber, 0, course["name"], course["prerequisites"], course["minUnits"]))
             #self.coordinates.append(getNextCoordinate(self.coordinates[-1]))
             self.electrons.append(Electron(cx,cy))
 
-            if status == 1: self.completedCourses += 1
-            elif status == 2: self.completedCourses += 0.5
-
             self.countUnits()
+            self.countCompletedCourses()
             self.saveCourses()
 
     def drawSideCourses(self):
